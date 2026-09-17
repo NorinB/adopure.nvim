@@ -33,6 +33,21 @@ function M.await_result(job)
     }
 end
 
+-- Azure DevOps names the resolved thread state "fixed" on the wire; only the label differs.
+local status_display_names = {
+    fixed = "resolved",
+}
+
+--- Human readable name for an Azure DevOps thread status
+--- @param status string|nil
+--- @return string
+function M.thread_status_display(status)
+    if not status then
+        return ""
+    end
+    return status_display_names[status] or status
+end
+
 --- Create pull_request_thread descriptive line
 --- @param pull_request_thread adopure.Thread
 --- @return string
@@ -41,7 +56,7 @@ function M.pull_request_thread_title(pull_request_thread)
         "[",
         pull_request_thread.id,
         " - ",
-        pull_request_thread.status,
+        M.thread_status_display(pull_request_thread.status),
         "] ",
         pull_request_thread.comments[1].content,
     })

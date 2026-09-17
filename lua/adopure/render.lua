@@ -106,7 +106,13 @@ function M.render_reply_thread(pull_request_thread)
         { { "Comment thread: ", "@text.strong" }, { tostring(pull_request_thread.id), "@text.reference" } },
         {
             { "Status: ", "@text.strong" },
-            { icons[pull_request_thread.status] .. " - [" .. pull_request_thread.status .. "]", "@text.reference" },
+            {
+                icons[pull_request_thread.status]
+                    .. " - ["
+                    .. require("adopure.utils").thread_status_display(pull_request_thread.status)
+                    .. "]",
+                "@text.reference",
+            },
         },
         { { "", "@text.literal" } },
         { { "Comments: ", "@text.strong" } },

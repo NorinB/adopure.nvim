@@ -35,7 +35,7 @@ function AdoThread:format_item()
         "[",
         self.id,
         " - ",
-        self.status,
+        require("adopure.utils").thread_status_display(self.status),
         "] ",
         self.comments[1].content,
     })
@@ -48,7 +48,7 @@ function AdoThread:preview()
         "Comment thread: " .. tostring(self.id),
         "Created: " .. pull_request.readable_timestamp(self.publishedDate),
         "Last updated: " .. pull_request.readable_timestamp(self.lastUpdatedDate),
-        "Status: " .. (self.status or ""),
+        "Status: " .. require("adopure.utils").thread_status_display(self.status),
         "",
         "Comments:",
     }

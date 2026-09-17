@@ -47,7 +47,11 @@ end
 ---@param pull_request adopure.PullRequest
 ---@param _ string
 function CommentReply:update_status(pull_request, _)
-    vim.ui.select(thread_status, { prompt = "Select new status;" }, function(choice)
+    local select_opts = {
+        prompt = "Select new status;",
+        format_item = require("adopure.utils").thread_status_display,
+    }
+    vim.ui.select(thread_status, select_opts, function(choice)
         if not choice then
             vim.notify("No new status chosen;", 3)
             return

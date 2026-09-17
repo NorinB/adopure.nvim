@@ -1,4 +1,6 @@
 local M = {}
+local AWAIT_TIMEOUT_MS = 10000
+local AWAIT_INTERVAL_MS = 200
 ---@class adopure.JobResult
 ---@field stdout string[]
 ---@field stderr string[]
@@ -9,20 +11,26 @@ local M = {}
 ---@return adopure.JobResult
 function M.await_result(job)
     local stdout, stderr
-    while true do
+    for _ = 1, AWAIT_TIMEOUT_MS / AWAIT_INTERVAL_MS do
         if (stdout and stdout[1]) or (stderr and stderr[1]) then
             return {
                 stdout = stdout,
                 stderr = stderr,
             }
         end
-        vim.wait(200, function()
+        vim.wait(AWAIT_INTERVAL_MS, function()
             ---@diagnostic disable-next-line: missing-return,undefined-field
             stdout = job:result()
             ---@diagnostic disable-next-line: missing-return,undefined-field
             stderr = job:stderr_result()
         end)
     end
+    -- A job that writes to neither stream never satisfies the loop above; let callers
+    -- report the empty result instead of blocking the editor forever.
+    return {
+        stdout = stdout or {},
+        stderr = stderr or {},
+    }
 end
 
 --- Create pull_request_thread descriptive line

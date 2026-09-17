@@ -8,21 +8,40 @@ local access_token = config:access_token()
 local organization_url = ""
 local project_name = ""
 
-local headers = {
-    ["Authorization"] = "basic " .. access_token,
-    ["Content-Type"] = "application/json",
-}
+---Write content to a temporary file readable only by the current user.
+---Keeps credentials and request bodies off the curl command line,
+---where they are visible to any process listing and to endpoint security agents.
+---@param content string
+---@return string path
+local function write_private_file(content)
+    local path = vim.fn.tempname()
+    local file = assert(io.open(path, "w"))
+    file:write(content)
+    file:close()
+    vim.loop.fs_chmod(path, tonumber("600", 8))
+    return path
+end
+
+---@return string path
+local function write_header_config()
+    return write_private_file(table.concat({
+        'header = "Authorization: basic ' .. access_token .. '"',
+        'header = "Content-Type: application/json"',
+    }, "\n"))
+end
 
 ---Get request from azure devops
 ---@param url string
 ---@param request_type string
 ---@return any|nil result, string|nil err
 local function get_azure_devops(url, request_type)
+    local header_config = write_header_config()
     local ok, response = pcall(curl.request, {
         url = url,
         method = "get",
-        headers = headers,
+        raw = { "--config", header_config },
     })
+    os.remove(header_config)
     if not ok or not response or response.status ~= 200 then
         local details = ""
         if response then
@@ -154,12 +173,17 @@ end
 ---@param request_type string
 ---@return any|nil result, string|nil err
 local function submit_azure_devops(url, http_verb, request_type, body)
+    local encoded_body = vim.fn.json_encode(body)
+    local header_config = write_header_config()
+    local body_file = write_private_file(encoded_body)
     local ok, response = pcall(curl.request, {
         url = url,
         method = http_verb,
-        headers = headers,
-        body = vim.fn.json_encode(body),
+        raw = { "--config", header_config },
+        body = body_file,
     })
+    os.remove(header_config)
+    os.remove(body_file)
     if not ok or not response or response.status ~= 200 then
         local details = ""
         if response then

@@ -1,13 +1,14 @@
 local M = {}
 
----@param pull_request adopure.PullRequest
-local function confirm_open_in_diffview(pull_request)
+---@param state adopure.AdoState
+local function confirm_open_in_diffview(state)
     vim.ui.input({ prompt = "Open in diffview? <CR> / <ESC>" }, function(input)
         if not input then
             return
         end
-        local merge_base = require("adopure.git").get_merge_base(pull_request)
+        local merge_base = require("adopure.git").get_merge_base(state.active_pull_request)
         vim.cmd(":DiffviewOpen " .. merge_base)
+        state.diffview = require("diffview.lib").get_current_view()
     end)
 end
 
@@ -41,7 +42,7 @@ end
 function M.activate_pull_request_context(state)
     require("adopure.marker").clear_removed_comment_marks(0, state.pull_request_threads)
     require("adopure.git").confirm_checkout_and_open(state.active_pull_request, function()
-        confirm_open_in_diffview(state.active_pull_request)
+        confirm_open_in_diffview(state)
     end)
     buffer_marker_autocmd(state)
 end

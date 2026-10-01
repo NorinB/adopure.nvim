@@ -222,6 +222,13 @@ function adopure.get_loaded_state()
     return state_manager.state
 end
 
+---Check whether a diffview view is the one opened for the active pull request.
+---@param view table|nil
+---@return boolean
+function adopure.is_review_view(view)
+    return view ~= nil and state_manager ~= nil and state_manager.state ~= nil and state_manager.state.diffview == view
+end
+
 ---@private
 function adopure.auto_completer(arg_lead, cmdline, _)
     local subcmd_key, subcmd_arg_lead = cmdline:match("^'?<?,?'?>?AdoPure*%s(%S+)%s(.*)$")

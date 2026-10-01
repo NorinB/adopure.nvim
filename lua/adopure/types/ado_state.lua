@@ -10,6 +10,7 @@ local M = {}
 ---@field comment_creations adopure.CommentCreate[]
 ---@field comment_replies adopure.CommentReply[]
 ---@field root_path string
+---@field diffview table|nil
 local AdoState = {}
 M.AdoState = AdoState
 

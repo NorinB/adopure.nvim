@@ -89,8 +89,7 @@ end
 ---@param highlight_segments table<number, string>
 local function line_segment_highlights(bufnr, line_number, line, line_components, highlight_segments)
     for component_number, hl_group in pairs(highlight_segments) do
-        local start, finish =
-            string.find(line, tostring(line_components[component_number]):gsub("([-()%.+*?[^$%%])", "%%%1"))
+        local start, finish = string.find(line, tostring(line_components[component_number]), 1, true)
         vim.api.nvim_buf_set_extmark(bufnr, namespace, line_number, start - 1, {
             end_col = finish,
             hl_group = hl_group,

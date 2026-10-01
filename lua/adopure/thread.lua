@@ -6,8 +6,11 @@ local M = {}
 local function get_selected_position()
     local mode = vim.api.nvim_get_mode()["mode"]
     local pos_by_mode = { "'<", "'>" }
-    if vim.tbl_contains({ "v", "V" }, mode) then
+    if vim.tbl_contains({ "v", "V", "\22" }, mode) then
         pos_by_mode = { "v", "." }
+    elseif vim.fn.line("'<") == 0 then
+        local cursor_line = vim.fn.line(".")
+        return cursor_line - 1, 0, cursor_line - 1, -1
     end
     local _, line_start, col_start = unpack(vim.fn.getpos(pos_by_mode[1]))
     local _, line_end, col_end = unpack(vim.fn.getpos(pos_by_mode[2]))

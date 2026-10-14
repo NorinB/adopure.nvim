@@ -14,8 +14,11 @@ local function get_selected_position()
     end
     local _, line_start, col_start = unpack(vim.fn.getpos(pos_by_mode[1]))
     local _, line_end, col_end = unpack(vim.fn.getpos(pos_by_mode[2]))
+    if line_start > line_end or (line_start == line_end and col_start > col_end) then
+        line_start, col_start, line_end, col_end = line_end, col_end, line_start, col_start
+    end
 
-    if col_start == col_end or (col_start == 1 and col_end == 2147483647) then
+    if mode == "V" or col_start == col_end or (col_start == 1 and col_end == 2147483647) then
         return line_start - 1, 0, line_end - 1, -1
     end
     return line_start - 1, col_start - 1, line_end - 1, col_end

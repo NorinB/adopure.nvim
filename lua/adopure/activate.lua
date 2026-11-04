@@ -1,14 +1,24 @@
 local M = {}
 
 ---@param state adopure.AdoState
-local function confirm_open_in_diffview(state)
-    vim.ui.input({ prompt = "Open in diffview? <CR> / <ESC>" }, function(input)
+local function confirm_open_in_viewer(state)
+    local viewer = require("adopure.viewer")
+    local name = viewer.available_viewer()
+    if not name then
+        vim.notify("AdoPure: no diff viewer available; install diffview.nvim or diffbandit.nvim;", vim.log.levels.WARN)
+        return
+    end
+    vim.ui.input({ prompt = "Open in " .. name .. "? <CR> / <ESC>" }, function(input)
         if not input then
             return
         end
         local merge_base = require("adopure.git").get_merge_base(state.active_pull_request)
-        vim.cmd(":DiffviewOpen " .. merge_base)
-        state.diffview = require("diffview.lib").get_current_view()
+        local review, err = viewer.open(merge_base)
+        if err or not review then
+            vim.notify("AdoPure: " .. (err or "failed to open diff viewer;"), vim.log.levels.ERROR)
+            return
+        end
+        state.review = review
     end)
 end
 
@@ -42,7 +52,7 @@ end
 function M.activate_pull_request_context(state)
     require("adopure.marker").clear_removed_comment_marks(0, state.pull_request_threads)
     require("adopure.git").confirm_checkout_and_open(state.active_pull_request, function()
-        confirm_open_in_diffview(state)
+        confirm_open_in_viewer(state)
     end)
     buffer_marker_autocmd(state)
 end

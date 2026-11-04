@@ -34,6 +34,10 @@
 ---3. Any remote. If the remote is not an Azure DevOps remote, the plugin will not work.
 ---@field preferred_remotes? string[]
 ---@field filter_my_pull_requests? boolean Fetches only pull requests assigned to me, my team or created by me.
+---Diff viewers to open the pull request in, by priority; the first installed one is used.
+---Supported: "diffview" (sindrets/diffview.nvim) and "diffbandit" (CoreyKaylor/diffbandit.nvim).
+---Defaults to { "diffview", "diffbandit" }.
+---@field viewers? string[]
 
 local config = {}
 

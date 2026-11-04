@@ -222,11 +222,24 @@ function adopure.get_loaded_state()
     return state_manager.state
 end
 
----Check whether a diffview view is the one opened for the active pull request.
----@param view table|nil
+---Check whether a view is the one opened for the active pull request.
+---Accepts a diffview view, a tabpage number, or nil to check the current tabpage.
+---@param view table|number|nil
 ---@return boolean
 function adopure.is_review_view(view)
-    return view ~= nil and state_manager ~= nil and state_manager.state ~= nil and state_manager.state.diffview == view
+    local state = state_manager and state_manager.state
+    return state ~= nil and require("adopure.viewer").is_review(state.review, view)
+end
+
+---Close the diff viewer opened for the active pull request.
+function adopure.close_review()
+    local state = state_manager and state_manager.state
+    if not state or not state.review then
+        vim.notify("AdoPure: no review view open;", vim.log.levels.WARN)
+        return
+    end
+    require("adopure.viewer").close(state.review)
+    state.review = nil
 end
 
 ---@private

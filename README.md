@@ -13,12 +13,20 @@ The plugin provides an opinionated workflow to interact with Azure DevOps Pull R
     dependencies = {
         "nvim-lua/plenary.nvim",
         "nvim-telescope/telescope.nvim",
-        -- "sindrets/diffview.nvim" -- Optionally required to open PR in diffview
+        -- Optional, to open the PR in a diff viewer; install at least one:
+        -- "sindrets/diffview.nvim",
+        -- "CoreyKaylor/diffbandit.nvim",
     },
     config = function()
         vim.g.adopure = {}
     end,
 }
+```
+
+- If both diff viewers are installed, `viewers` sets the priority; the first installed one is used:
+
+``` lua
+vim.g.adopure = { viewers = { "diffbandit", "diffview" } }
 ```
 
 - Available on luarocks:

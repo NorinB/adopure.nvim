@@ -33,8 +33,8 @@ end
 ---@return adopure.ThreadContext
 local function get_thread_context(state, col_end, col_start, line_end, line_start)
     local file_path = vim.fn.expand("%:p")
-    if file_path:match("^diffview://") then
-        local left_path = file_path:gsub("^diffview://.+/.git/[^/]+(.*)$", "%1")
+    local left_path = require("adopure.viewer").left_file_path(vim.api.nvim_get_current_buf())
+    if left_path then
         ---@type adopure.ThreadContext
         return {
             filePath = left_path,

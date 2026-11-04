@@ -61,5 +61,11 @@ function M.check()
     for _, dependency in ipairs({ "telescope", "plenary" }) do
         check_dependency(dependency)
     end
+    local viewer = require("adopure.viewer").available_viewer()
+    if not viewer then
+        vim.health.warn("No diff viewer installed; install diffview.nvim or diffbandit.nvim to open PRs in a diff;")
+        return
+    end
+    vim.health.ok("Diff viewer: " .. viewer)
 end
 return M

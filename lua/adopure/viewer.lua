@@ -42,10 +42,11 @@ local viewers = {
     diffbandit = {
         module = "diffbandit",
         open = function(merge_base)
-            local session, err = require("diffbandit").git({
+            local session, err = require("diffbandit").git_panel({
                 mode = "all",
                 base = merge_base,
                 include_untracked = false,
+                read_only = true,
             })
             if not session then
                 return nil, nil, tostring(err or "Failed to open diffbandit;")

@@ -41,6 +41,9 @@
 ---How comment thread windows are opened: "split" opens a split below, "float" a centered floating window.
 ---Defaults to "split".
 ---@field thread_window? string
+---Where the pull request overview opens: "current" uses the current window, "tab" a new tab.
+---Defaults to "current".
+---@field pull_request_window? string
 ---Whether loading a pull request context opens it in the diff viewer:
 ---"ask" prompts first, "always" opens it right away, "never" only loads the context.
 ---Defaults to "ask".

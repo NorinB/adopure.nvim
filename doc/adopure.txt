@@ -176,6 +176,8 @@ adopure.Config                                                  *adopure.Config*
                                                                                                                    Defaults to { "diffview", "diffbandit" }.
         {thread_window?}             (string)                                                                      How comment thread windows are opened: "split" opens a split below, "float" a centered floating window.
                                                                                                                    Defaults to "split".
+        {pull_request_window?}       (string)                                                                      Where the pull request overview opens: "current" uses the current window, "tab" a new tab.
+                                                                                                                   Defaults to "current".
         {open_viewer?}               (string)                                                                      Whether loading a pull request context opens it in the diff viewer:
                                                                                                                    "ask" prompts first, "always" opens it right away, "never" only loads the context.
                                                                                                                    Defaults to "ask".
@@ -345,6 +347,7 @@ M.open({state}, {opts})                                                 *M.open*
     Open the active pull request in a read-only overview buffer.
     Shows title, branches, status, reviewer votes, description and a timeline of all comment threads.
     The buffer follows the loaded state; it re-renders whenever it is entered.
+    It opens in the current window, or in its own tab with the pull_request_window config.
     It has filetype adopure with the markdown parser; add that filetype to markdown plugins to style it.
     Buffer keymaps:
          <CR>: Jump to the code of the comment thread under the cursor and open its thread window.

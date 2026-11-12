@@ -11,6 +11,7 @@
 ---@field filter_my_pull_requests boolean
 ---@field viewers string[]
 ---@field thread_window string
+---@field pull_request_window string
 ---@field open_viewer string
 ---@field pull_request_from_branch boolean
 ---@field checkout_methods any
@@ -30,6 +31,7 @@ function InternalConfig:new()
         filter_my_pull_requests = false,
         viewers = { "diffview", "diffbandit" },
         thread_window = "split",
+        pull_request_window = "current",
         open_viewer = "ask",
         pull_request_from_branch = false,
     }

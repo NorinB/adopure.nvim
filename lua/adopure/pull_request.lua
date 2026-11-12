@@ -584,9 +584,29 @@ local function create_buffer(name)
     return bufnr
 end
 
+---Show the overview in the current window, or in its own tab when pull_request_window is "tab".
+---An overview that is visible already is focused instead of being opened a second time.
+---@param bufnr number
+local function show(bufnr)
+    if require("adopure.config.internal").pull_request_window ~= "tab" then
+        vim.api.nvim_set_current_buf(bufnr)
+        return
+    end
+    local window = vim.fn.bufwinid(bufnr)
+    if window == -1 then
+        window = vim.fn.win_findbuf(bufnr)[1]
+    end
+    if window then
+        vim.api.nvim_set_current_win(window)
+        return
+    end
+    vim.cmd("tab sbuffer " .. bufnr)
+end
+
 ---Open the active pull request in a read-only overview buffer.
 ---Shows title, branches, status, reviewer votes, description and a timeline of all comment threads.
 ---The buffer follows the loaded state; it re-renders whenever it is entered.
+---It opens in the current window, or in its own tab with the pull_request_window config.
 ---It has filetype adopure with the markdown parser; add that filetype to markdown plugins to style it.
 ---Buffer keymaps:
 ---     <CR>: Jump to the code of the comment thread under the cursor and open its thread window.
@@ -600,7 +620,7 @@ function M.open(state, opts)
     local bufnr = find_buffer(name) or create_buffer(name)
     buffers[bufnr] = { state = state, opts = opts or {}, line_threads = {}, thread_lines = {} }
     render(bufnr)
-    vim.api.nvim_set_current_buf(bufnr)
+    show(bufnr)
     return bufnr
 end
 

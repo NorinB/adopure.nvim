@@ -152,4 +152,26 @@ describe("pull request overview", function()
         vim.api.nvim_feedkeys("[[", "x", false)
         assert.are.same(code_thread, vim.api.nvim_win_get_cursor(0)[1])
     end)
+
+    it("opens in its own tab when configured and returns to it", function()
+        local config = require("adopure.config.internal")
+        config.pull_request_window = "tab"
+        vim.cmd("silent! %bwipeout!")
+        local origin_tabpage = vim.api.nvim_get_current_tabpage()
+
+        local _, bufnr = open({})
+        local overview_tabpage = vim.api.nvim_get_current_tabpage()
+        assert.are.same(2, #vim.api.nvim_list_tabpages())
+        assert.are_not.equal(origin_tabpage, overview_tabpage)
+        assert.are.same(bufnr, vim.api.nvim_get_current_buf())
+        assert.is_true(vim.wo.wrap)
+
+        vim.api.nvim_set_current_tabpage(origin_tabpage)
+        open({})
+        assert.are.same(2, #vim.api.nvim_list_tabpages())
+        assert.are.same(overview_tabpage, vim.api.nvim_get_current_tabpage())
+
+        config.pull_request_window = "current"
+        vim.cmd("tabonly")
+    end)
 end)

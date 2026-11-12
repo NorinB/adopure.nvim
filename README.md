@@ -122,6 +122,12 @@ It accepts the same filters as the thread picker:
 :AdoPure open pull_request {thread_filters={'hide_system', 'hide_closed'}}
 ```
 
+It opens in the current window by default; set `pull_request_window` to open it in its own tab:
+
+``` lua
+vim.g.adopure = { pull_request_window = "tab" }
+```
+
 key         | action
 ------------|--------------------------------------------------------------------------------------
 `<CR>`      | Jump to the code of the comment thread under the cursor and open its thread window.

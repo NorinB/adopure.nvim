@@ -38,11 +38,13 @@
 ---@field displayName string
 ---@field id string
 ---@field vote PullRequestVote
+---@field isRequired boolean|nil
 
 ---@class adopure.Repository
 ---@field name string
 ---@field id string
 ---@field url string
+---@field webUrl string|nil
 ---@field defaultBranch string
 
 ---@class adopure.Project
@@ -111,6 +113,7 @@
 ---@field id number
 ---@field sourceRefCommit adopure.CommitRef
 ---@field targetRefCommit adopure.CommitRef
+---@field commonRefCommit adopure.CommitRef|nil
 
 ---@class adopure.CommitRef
 ---@field commitId  string

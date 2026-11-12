@@ -3,9 +3,11 @@ Table of Contents                                             *adopure.contents*
 
  ····································································· |adopure|
  ························································· |adopure.config.meta|
+ ···························································· |adopure.checkout|
  ························································· |adopure.types.state|
  ················································· |adopure.types.state_manager|
  ······························································ |adopure.thread|
+ ························································ |adopure.pull_request|
  ···························································· |adopure.quickfix|
  ······················································ |adopure.pickers.thread|
  ······························································ |adopure.review|
@@ -26,14 +28,23 @@ The command is auto-completing when used in neovim command line. Valid options i
 Loads specified argument into state.
 
      *context*: load open pull requests; prompt user to pick one.
+     The open pull requests are fetched again on every call.
+     With the pull_request_from_branch config, the pull request of the checked out branch
+     is taken without prompting; pass {pick=true} to prompt anyway.
      Note: Subsequent commands will operate on the chosen PR.
 
      *threads*: Fetch comment threads from Azure DevOps.
 
 >vim
- :AdoPure [ open ] [ quickfix | thread_picker | new_thread | existing_thread ] [ opts ]
+ :AdoPure [ open ] [ pull_request | quickfix | thread_picker | new_thread | existing_thread ] [ opts ]
 <
 Opens specified argument in the editor.
+
+     *pull_request*: Open a read-only overview buffer of the whole pull request.
+     Shows details, reviewer votes, description and a timeline of all comment threads.
+     Supports the same thread_filters as the thread_picker.
+     If no pull request is loaded yet, one is chosen first as for load context;
+     this loads it without checking it out or opening the diff viewer.
 
      *quickfix*: Open comment threads in quickfix window.
 
@@ -103,6 +114,21 @@ adopure.get_loaded_state()                            *adopure.get_loaded_state*
         (adopure.AdoState)
 
 
+adopure.is_review_view({view})                          *adopure.is_review_view*
+    Check whether a view is the one opened for the active pull request.
+    Accepts a diffview view, a tabpage number, or nil to check the current tabpage.
+
+    Parameters: ~
+        {view}  (table|number|nil)
+
+    Returns: ~
+        (boolean)
+
+
+adopure.close_review()                                    *adopure.close_review*
+    Close the diff viewer opened for the active pull request.
+
+
 ==============================================================================
                                                            *adopure.config.meta*
 
@@ -134,16 +160,111 @@ adopure.Highlights                                          *adopure.Highlights*
 adopure.Config                                                  *adopure.Config*
 
     Fields: ~
-        {pat_token?}                (string)              Personal Access Token to access Azure DevOps.
-                                                          If not provided, attempt to use AZURE_DEVOPS_EXT_PAT environment variable.
-                                                          If no environment variable is set, and no config is provided, the plugin will not work.
-        {hl_groups?}                (adopure.Highlights)  Highlight groups to apply.
-        {preferred_remotes?}        (string[])            List with preferred remotes to extract Azure DevOps context from.
-                                                          Remotes are elected among the following options:
-                                                          1. Any remote in this list can be picked, non-deterministically.
-                                                          2. Any Azure DevOps remote.
-                                                          3. Any remote. If the remote is not an Azure DevOps remote, the plugin will not work.
-        {filter_my_pull_requests?}  (boolean)             Fetches only pull requests assigned to me, my team or created by me.
+        {pat_token?}                 (string)                                                                      Personal Access Token to access Azure DevOps.
+                                                                                                                   If not provided, attempt to use AZURE_DEVOPS_EXT_PAT environment variable.
+                                                                                                                   If no environment variable is set, and no config is provided, the plugin will not work.
+        {hl_groups?}                 (adopure.Highlights)                                                          Highlight groups to apply.
+        {preferred_remotes?}         (string[])                                                                    List with preferred remotes to extract Azure DevOps context from.
+                                                                                                                   Remotes are elected among the following options:
+                                                                                                                   1. Any remote in this list can be picked, non-deterministically.
+                                                                                                                   2. Any Azure DevOps remote.
+                                                                                                                   3. Any remote. If the remote is not an Azure DevOps remote, the plugin will not work.
+        {filter_my_pull_requests?}   (boolean)                                                                     Fetches only pull requests assigned to me, my team or created by me.
+        {viewers?}                   (string[])                                                                    Diff viewers to open the pull request in, by priority; the first installed one is used.
+                                                                                                                   Supported: "diffview" (sindrets/diffview.nvim) and "diffbandit" (CoreyKaylor/diffbandit.nvim).
+                                                                                                                   Defaults to { "diffview", "diffbandit" }.
+        {thread_window?}             (string)                                                                      How comment thread windows are opened: "split" opens a split below, "float" a centered floating window.
+                                                                                                                   Defaults to "split".
+        {open_viewer?}               (string)                                                                      Whether loading a pull request context opens it in the diff viewer:
+                                                                                                                   "ask" prompts first, "always" opens it right away, "never" only loads the context.
+                                                                                                                   Defaults to "ask".
+        {pull_request_from_branch?}  (boolean)                                                                     Take the pull request of the checked out branch instead of prompting to choose one.
+                                                                                                                   Applies when exactly one open pull request has the checked out branch or commit as its source.
+                                                                                                                   Defaults to false.
+        {checkout_methods?}          ((string|adopure.CheckoutMethod|fun(context:adopure.CheckoutContext):any)[])  How to check out a pull request whose source is not checked out yet; see |adopure.checkout|.
+                                                                                                                   Each entry is "detached", "switch", a table with a name and a command, or a function returning those.
+                                                                                                                   One entry is used right away, several are offered in a prompt, an empty list never checks out.
+                                                                                                                   When not set, a prompt asks whether to check out the source commit detached.
+        {on_checkout?}               (fun(context:adopure.CheckoutContext))                                        Called after every successful checkout, whichever method was used.
+
+
+==============================================================================
+                                                              *adopure.checkout*
+
+Checking out a pull request is configured with checkout_methods and on_checkout.
+It happens when a pull request context is loaded and its source is not checked out yet.
+
+With one configured method, that method is used right away.
+With several, a prompt lets you choose one; cancelling it continues without a checkout.
+With an empty list, nothing is ever checked out.
+When checkout_methods is not set, a prompt asks whether to check out the source commit detached.
+A configured list replaces that default completely; include "detached" to keep it as a choice.
+
+A method is one of:
+     A builtin name: "detached" checks out the source commit, "switch" runs git switch on the source branch.
+     A table with a name and a command.
+     A function returning such a table, or a name and a command.
+     It is called when the methods are listed, so before one is chosen.
+
+A command is one of:
+     A string, run through the shell. Placeholders are shell escaped, so do not quote them.
+     A list of arguments, run without a shell.
+     A function returning a string, a list, or nil when it did the checkout itself.
+     It is called only once its method is chosen.
+
+Placeholders are {branch}, {target}, {commit}, {id} and {remote}.
+Functions receive the same values as an adopure.CheckoutContext.
+
+A failing checkout is reported and stops the pull request from being opened in the diff viewer.
+on_checkout runs after every successful checkout, for example to change into a new worktree.
+The repository root is read again afterwards.
+>lua
+ vim.g.adopure = {
+     checkout_methods = {
+         "switch",
+         { name = "worktree", command = "git worktree add ../{branch} {branch}" },
+     },
+     on_checkout = function(context)
+         if context.method == "worktree" then
+             vim.cmd.cd("../" .. context.branch)
+         end
+     end,
+ }
+<
+
+adopure.CheckoutContext                                *adopure.CheckoutContext*
+
+    Fields: ~
+        {pull_request}  (adopure.PullRequest)
+        {id}            (number)               Pull request id.
+        {branch}        (string)               Source branch, without refs/heads/.
+        {target}        (string)               Target branch, without refs/heads/.
+        {commit}        (string)               Source commit id.
+        {remote}        (string|nil)           Name of the Azure DevOps git remote.
+        {method}        (string|nil)           Name of the method used; only set for on_checkout.
+
+
+adopure.CheckoutCommand                                *adopure.CheckoutCommand*
+
+    Type: ~
+        string|string[]|fun(context:adopure.CheckoutContext):string|string[]|nil
+
+
+adopure.CheckoutMethod                                  *adopure.CheckoutMethod*
+
+    Fields: ~
+        {name}     (string)
+        {command}  (adopure.CheckoutCommand|nil)
+
+
+M.checkout_and_open({pull_request}, {open_callable})       *M.checkout_and_open*
+    Check out the pull request as configured, then call open_callable.
+    Calls it right away when the pull request source is already checked out, or no checkout is wanted.
+    Does not call it when the checkout fails.
+
+    Parameters: ~
+        {pull_request}   (adopure.PullRequest)
+        {open_callable}  (function)
 
 
 ==============================================================================
@@ -159,6 +280,13 @@ adopure.StateManager                                      *adopure.StateManager*
         {pull_requests}  (adopure.PullRequest[])
         {state}          (adopure.AdoState|nil)
         {root_path}      (string)
+
+
+adopure.ChooseOpts                                          *adopure.ChooseOpts*
+    Parameters for choosing a pull request.
+
+    Fields: ~
+        {pick}  (boolean|nil)  Always prompt, even when the pull_request_from_branch config would pick the checked out pull request.
 
 
 ==============================================================================
@@ -198,6 +326,36 @@ M.submit_comment({state}, {_})                                *M.submit_comment*
     Parameters: ~
         {state}  (adopure.AdoState)
         {_}      (table)             @deprecated Migrate to adopure.AdoState:submit_comment(_)
+
+
+==============================================================================
+                                                          *adopure.pull_request*
+
+adopure.OpenPullRequestOpts                        *adopure.OpenPullRequestOpts*
+    Parameters for the pull request overview.
+
+    Fields: ~
+        {thread_filters}  (string[]|nil)  Supports the same filters as the thread picker:
+                                          hide_system: Hides system threads in the timeline.
+                                          hide_closed: Hides closed threads in the timeline.
+
+
+M.open({state}, {opts})                                                 *M.open*
+    Open the active pull request in a read-only overview buffer.
+    Shows title, branches, status, reviewer votes, description and a timeline of all comment threads.
+    The buffer follows the loaded state; it re-renders whenever it is entered.
+    It has filetype adopure with the markdown parser; add that filetype to markdown plugins to style it.
+    Buffer keymaps:
+         <CR>: Jump to the code of the comment thread under the cursor and open its thread window.
+         R: Fetch pull request and comment threads from Azure DevOps again.
+         ]] and [[: Jump to the next or previous comment thread.
+
+    Parameters: ~
+        {state}  (adopure.AdoState)
+        {opts}   (adopure.OpenPullRequestOpts)
+
+    Returns: ~
+        (number)  bufnr
 
 
 ==============================================================================

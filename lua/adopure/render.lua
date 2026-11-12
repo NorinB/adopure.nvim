@@ -2,6 +2,24 @@ local M = {}
 local buffer_counter = 0
 
 local namespace = vim.api.nvim_create_namespace("adopure-render")
+local FLOAT_MIN_INPUT_LINES = 5
+
+---@param height number
+---@return vim.api.keyset.win_config
+local function float_geometry(height)
+    local border_size = 2
+    local max_width = math.max(vim.o.columns - border_size - 2, 1)
+    local max_height = math.max(math.floor(vim.o.lines * 0.8), 1)
+    local width = math.min(math.max(math.floor(vim.o.columns * 0.6), 80), max_width)
+    height = math.min(math.max(height, 1), max_height)
+    return {
+        relative = "editor",
+        width = width,
+        height = height,
+        row = math.max(math.floor((vim.o.lines - height - border_size) / 2), 0),
+        col = math.max(math.floor((vim.o.columns - width - border_size) / 2), 0),
+    }
+end
 
 local function rightsize_window()
     local extmarks = vim.api.nvim_buf_get_extmarks(0, namespace, 0, -1, { details = true })
@@ -13,17 +31,36 @@ local function rightsize_window()
         end
     end
 
-    if vim.api.nvim_win_get_height(0) < line_count + 2 then
+    if vim.api.nvim_win_get_config(0).relative ~= "" then
+        local input_line_count = math.max(vim.api.nvim_buf_line_count(0), FLOAT_MIN_INPUT_LINES)
+        vim.api.nvim_win_set_config(0, float_geometry(line_count + input_line_count))
+    elseif vim.api.nvim_win_get_height(0) < line_count + 2 then
         vim.cmd("horizontal resize " .. line_count + 2)
     end
     vim.fn.winrestview({ topfill = line_count })
 end
 
----Open split window
+---@param bufname string
+local function open_float(bufname)
+    local bufnr = vim.fn.bufadd(bufname)
+    vim.bo[bufnr].buflisted = true
+    local win_config = float_geometry(FLOAT_MIN_INPUT_LINES)
+    win_config.style = "minimal"
+    if vim.fn.exists("+winborder") == 0 or vim.o.winborder == "" then
+        win_config.border = "rounded"
+    end
+    vim.api.nvim_open_win(bufnr, true, win_config)
+end
+
+---Open thread window as configured: a split below, or a floating window
 ---@param bufname string
 ---@return number bufnr
-local function open_new_split(bufname)
-    vim.cmd("below new " .. bufname)
+local function open_new_window(bufname)
+    if require("adopure.config.internal").thread_window == "float" then
+        open_float(bufname)
+    else
+        vim.cmd("below new " .. bufname)
+    end
     vim.api.nvim_set_option_value("buftype", "nofile", { buf = 0 })
     buffer_counter = buffer_counter + 1
     vim.cmd(":setlocal wrap")
@@ -84,10 +121,10 @@ local function new_or_convert_window(new_bufname)
     if bufname:find("%[adopure %- new %-") or bufname == new_bufname then
         return convert_ado_window(new_bufname)
     end
-    return open_new_split(new_bufname)
+    return open_new_window(new_bufname)
 end
 
-local icons = {
+M.icons = {
     active = " ",
     byDesign = " ",
     closed = " ",
@@ -107,7 +144,7 @@ function M.render_reply_thread(pull_request_thread)
         {
             { "Status: ", "@text.strong" },
             {
-                icons[pull_request_thread.status]
+                M.icons[pull_request_thread.status]
                     .. " - ["
                     .. require("adopure.utils").thread_status_display(pull_request_thread.status)
                     .. "]",
@@ -144,7 +181,7 @@ end
 ---@param selection string[]
 ---@return number, number: bufnr, mark_id
 function M.render_new_thread(selection)
-    local bufnr = open_new_split("[adopure - new - " .. buffer_counter .. "]")
+    local bufnr = open_new_window("[adopure - new - " .. buffer_counter .. "]")
     local lines = {
         { { "Comment thread: ", "@text.strong" }, { "<new>", "@text.reference" } },
         { { "Status: ", "@text.strong" }, { "<new>", "@text.reference" } },

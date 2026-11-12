@@ -111,6 +111,13 @@ function M.get_pull_requests(repository, filter_my_pull_requests)
     return pull_requests, err
 end
 
+---Get a single pull request from Azure DevOps
+---@param pull_request adopure.PullRequest
+---@return adopure.PullRequest|nil pull_request, string|nil err
+function M.get_pull_request(pull_request)
+    return get_azure_devops(pull_request.url .. "?" .. GIT_API_VERSION, "pull request")
+end
+
 ---Get pull request iterations from Azure DevOps
 ---@param pull_request adopure.PullRequest
 ---@return adopure.Iteration[] iterations, string|nil err

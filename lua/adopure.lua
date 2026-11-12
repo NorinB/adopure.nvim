@@ -16,14 +16,23 @@
 ---Loads specified argument into state.
 ---
 ---     *context*: load open pull requests; prompt user to pick one.
+---     The open pull requests are fetched again on every call.
+---     With the pull_request_from_branch config, the pull request of the checked out branch
+---     is taken without prompting; pass {pick=true} to prompt anyway.
 ---     Note: Subsequent commands will operate on the chosen PR.
 ---
 ---     *threads*: Fetch comment threads from Azure DevOps.
 ---
 --->vim
---- :AdoPure [ open ] [ quickfix | thread_picker | new_thread | existing_thread ] [ opts ]
+--- :AdoPure [ open ] [ pull_request | quickfix | thread_picker | new_thread | existing_thread ] [ opts ]
 ---<
 ---Opens specified argument in the editor.
+---
+---     *pull_request*: Open a read-only overview buffer of the whole pull request.
+---     Shows details, reviewer votes, description and a timeline of all comment threads.
+---     Supports the same thread_filters as the thread_picker.
+---     If no pull request is loaded yet, one is chosen first as for load context;
+---     this loads it without checking it out or opening the diff viewer.
 ---
 ---     *quickfix*: Open comment threads in quickfix window.
 ---
@@ -93,6 +102,30 @@ local function execute_or_prompt(sub_impl, subcommand_args, subcommand)
     sub_impl[subcommand_args[1]](ok and opts or {})
 end
 
+---@return adopure.StateManager
+local function load_fresh_state_manager()
+    local is_initialized = state_manager ~= nil
+    local manager = adopure.load_state_manager()
+    if is_initialized then
+        manager:load_pull_requests()
+    end
+    return manager
+end
+
+---@param opts adopure.ChooseOpts
+---@param on_state fun(state: adopure.AdoState)
+local function with_state_or_choose(opts, on_state)
+    if state_manager and state_manager.state then
+        on_state(state_manager.state)
+        return
+    end
+    load_fresh_state_manager():choose(opts, function(state)
+        require("adopure.activate").enable_comment_marks(state)
+        vim.cmd.stopinsert()
+        on_state(state)
+    end)
+end
+
 ---@private
 ---@class adopure.SubCommand
 ---@field impl fun(args:string[])
@@ -112,8 +145,7 @@ local subcommand_tbl = {
         impl = function(args)
             local sub_impl = {
                 context = function(opts)
-                    local manager = adopure.load_state_manager()
-                    manager:choose_and_activate(opts)
+                    load_fresh_state_manager():choose_and_activate(opts)
                 end,
                 threads = function(opts)
                     adopure.get_loaded_state():load_pull_request_threads(opts)
@@ -150,9 +182,14 @@ local subcommand_tbl = {
         end,
     },
     open = {
-        complete_args = { "quickfix", "thread_picker", "new_thread", "existing_thread" },
+        complete_args = { "pull_request", "quickfix", "thread_picker", "new_thread", "existing_thread" },
         impl = function(args)
             local sub_impl = {
+                pull_request = function(opts)
+                    with_state_or_choose(opts, function(state)
+                        require("adopure.pull_request").open(state, opts)
+                    end)
+                end,
                 quickfix = function(opts)
                     require("adopure.quickfix").render_quickfix(adopure.get_loaded_state(), opts)
                 end,

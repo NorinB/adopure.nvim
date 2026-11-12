@@ -38,6 +38,24 @@
 ---Supported: "diffview" (sindrets/diffview.nvim) and "diffbandit" (CoreyKaylor/diffbandit.nvim).
 ---Defaults to { "diffview", "diffbandit" }.
 ---@field viewers? string[]
+---How comment thread windows are opened: "split" opens a split below, "float" a centered floating window.
+---Defaults to "split".
+---@field thread_window? string
+---Whether loading a pull request context opens it in the diff viewer:
+---"ask" prompts first, "always" opens it right away, "never" only loads the context.
+---Defaults to "ask".
+---@field open_viewer? string
+---Take the pull request of the checked out branch instead of prompting to choose one.
+---Applies when exactly one open pull request has the checked out branch or commit as its source.
+---Defaults to false.
+---@field pull_request_from_branch? boolean
+---How to check out a pull request whose source is not checked out yet; see |adopure.checkout|.
+---Each entry is "detached", "switch", a table with a name and a command, or a function returning those.
+---One entry is used right away, several are offered in a prompt, an empty list never checks out.
+---When not set, a prompt asks whether to check out the source commit detached.
+---@field checkout_methods? (string|adopure.CheckoutMethod|fun(context: adopure.CheckoutContext): any)[]
+---Called after every successful checkout, whichever method was used.
+---@field on_checkout? fun(context: adopure.CheckoutContext)
 
 local config = {}
 

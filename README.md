@@ -29,6 +29,54 @@ The plugin provides an opinionated workflow to interact with Azure DevOps Pull R
 vim.g.adopure = { viewers = { "diffbandit", "diffview" } }
 ```
 
+- Comment thread windows open as a split below by default; set `thread_window` to open them floating:
+
+``` lua
+vim.g.adopure = { thread_window = "float" }
+```
+
+- Loading a pull request context asks before opening the diff viewer; set `open_viewer` to `"always"` or `"never"` to skip the question:
+
+``` lua
+vim.g.adopure = { open_viewer = "always" }
+```
+
+- The checkout question is skipped when the pull request source is already checked out.
+- `checkout_methods` sets how a pull request is checked out; one method is used right away, several are offered
+  in a prompt. `on_checkout` runs after every successful checkout.
+  The list replaces the default question completely; include `"detached"` to keep that as a choice.
+  See `:h adopure.checkout` for all options:
+
+``` lua
+vim.g.adopure = {
+    checkout_methods = {
+        "switch", -- git switch <branch>
+        "detached", -- git checkout <commit>
+        { name = "worktree", command = "git worktree add ../{branch} {branch}" },
+    },
+    on_checkout = function(context)
+        if context.method == "worktree" then
+            vim.cmd.cd("../" .. context.branch)
+        end
+    end,
+}
+```
+
+- Set `pull_request_from_branch` to load the pull request of the checked out branch without choosing it:
+
+``` lua
+vim.g.adopure = { pull_request_from_branch = true }
+```
+
+- With `pull_request_from_branch`, pass `{pick=true}` to choose a pull request anyway:
+
+```vimL
+:AdoPure load context {pick=true}
+```
+
+- The pull request overview buffer has the filetype `adopure` and uses the markdown parser.
+  Add `adopure` to the filetypes of your markdown rendering plugin to style it.
+
 - Available on luarocks:
 
 ```bash
@@ -42,7 +90,7 @@ For all available config options see:
 
 ```vimL
 :AdoPure    [ load ] [ context | threads ] [ opts ]
-            [ open ] [ quickfix | thread_picker | new_thread | existing_thread ] [ opts ]
+            [ open ] [ pull_request | quickfix | thread_picker | new_thread | existing_thread ] [ opts ]
             [ submit ] [ comment | vote | thread_status | delete_comment | edit_comment ] [ opts ]
 ```
 
@@ -52,6 +100,7 @@ load    | <i>             | Loads specified argument into state.
 <i>     | context         | Load open pull requests; prompt user to pick one.
 <i>     | threads         | Fetch comment threads from Azure DevOps.
 open    | <i>             | Opens specified argument in the editor.
+<i>     | pull_request    | Open a read-only overview buffer of the whole pull request; picks one if none is loaded.
 <i>     | quickfix        | Open comment threads in quickfix window.
 <i>     | thread_picker   | Open a picker with all comment threads.
 <i>     | new_thread      | Opens a window to write a comment on code selection.
@@ -63,6 +112,22 @@ submit  | <i>             | Submits specified argument to Azure DevOps.
 <i>     | delete_comment  | Delete one of your own comments; must be in existing_thread window.
 <i>     | edit_comment    | Edit one of your own comments; must be in existing_thread window.
 
+## Pull request overview
+
+`:AdoPure open pull_request` opens the whole pull request in one read-only buffer:
+details, reviewer votes, description and a timeline of all comment threads with their code.
+It accepts the same filters as the thread picker:
+
+```vimL
+:AdoPure open pull_request {thread_filters={'hide_system', 'hide_closed'}}
+```
+
+key         | action
+------------|--------------------------------------------------------------------------------------
+`<CR>`      | Jump to the code of the comment thread under the cursor and open its thread window.
+`R`         | Fetch pull request and comment threads from Azure DevOps again.
+`]]` / `[[` | Jump to the next or previous comment thread.
+
 ## Suggested keymaps
 
 ``` lua
@@ -73,6 +138,7 @@ local function set_keymap(keymap, command)
 end
 set_keymap("<leader>alc", "AdoPure load context")
 set_keymap("<leader>alt", "AdoPure load threads")
+set_keymap("<leader>aop", "AdoPure open pull_request")
 set_keymap("<leader>aoq", "AdoPure open quickfix")
 set_keymap("<leader>aot", "AdoPure open thread_picker")
 set_keymap("<leader>aon", "AdoPure open new_thread")

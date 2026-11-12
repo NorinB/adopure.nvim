@@ -61,48 +61,12 @@ local function handle_choice(prompt_bufnr, state)
     require("adopure.thread").open_thread_window(state, open_thread_window_opts)
 end
 
-local thread_filters = {
-    ---@param thread adopure.Thread
-    hide_system = function(thread)
-        return thread.comments[1].commentType == "text"
-    end,
-    ---@param thread adopure.Thread
-    hide_closed = function(thread)
-        return thread.status == "active" or thread.status == "pending"
-    end,
-}
-
 ---Parameters for the thread picker.
 ---@class adopure.ChooseThreadOpts
 ---Supports following filters:
 ---*hide_system*: Hides system threads in the picker.
 ---*hide_closed*: Hides closed threads in the picker.
 ---@field thread_filters string[]
-
----@param thread_iter Iter
----@param thread_filter string
----@return Iter thread_iter
-local function apply_filter(thread_iter, thread_filter)
-    if not thread_filters[thread_filter] then
-        vim.notify("Invalid thread filter provided: " .. thread_filter, 3)
-        return thread_iter
-    end
-    return thread_iter:filter(thread_filters[thread_filter]) ---@diagnostic disable-line: undefined-field
-end
-
----@param pull_request_threads adopure.Thread[]
----@param opts adopure.ChooseThreadOpts
----@return adopure.Thread[] pull_request_threads
-local function filter_pull_request_threads(pull_request_threads, opts)
-    if not opts.thread_filters then
-        return pull_request_threads
-    end
-    local thread_iter = vim.iter(pull_request_threads)
-    vim.iter(opts.thread_filters):each(function(thread_filter) ---@param thread_filter string
-        thread_iter = apply_filter(thread_iter, thread_filter)
-    end)
-    return thread_iter:totable() ---@diagnostic disable-line: undefined-field
-end
 
 ---Choose a comment thread to jump to and open the related comment thread window.
 ---@param state adopure.AdoState
@@ -113,7 +77,7 @@ function M.choose_thread(state, opts)
         .new(require("telescope.themes").get_ivy({}), {
             prompt_title = "Threads",
             finder = require("telescope.finders").new_table({
-                results = filter_pull_request_threads(state.pull_request_threads, opts),
+                results = require("adopure.utils").filter_threads(state.pull_request_threads, opts.thread_filters),
                 entry_maker = entry_maker,
             }),
             sorter = require("telescope.config").values.generic_sorter({}),

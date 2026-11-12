@@ -108,29 +108,102 @@ function M.get_merge_base(pull_request)
     return result.stdout[1]
 end
 
----@param pull_request adopure.PullRequest
----@param open_callable function
-function M.confirm_checkout_and_open(pull_request, open_callable)
-    local Job = require("plenary.job")
-    vim.ui.input({ prompt = "Try to checkout pull request source branch? <CR> / <ESC>" }, function(input)
-        if not input then
-            open_callable()
-            return
-        end
-        local git_checkout_remote_job = Job:new({ ---@diagnostic disable-line: missing-fields
-            command = "git",
-            args = { "checkout", pull_request.lastMergeSourceCommit.commitId },
-            cwd = ".",
-            on_exit = function(j, return_val)
-                if return_val ~= 0 then
-                    error("Checkout failed: " .. vim.inspect(j:result()))
-                end
-            end,
+---Describe how the checked out branch relates to the pull request head.
+---@param source_commit string
+---@return string
+local function describe_divergence(source_commit)
+    local head = "the pull request head " .. source_commit:sub(1, 8)
+    local result = vim.system(
+        { "git", "rev-list", "--left-right", "--count", "HEAD..." .. source_commit },
+        { text = true }
+    ):wait()
+    local ahead, behind = (result.stdout or ""):match("(%d+)%s+(%d+)")
+    ahead, behind = tonumber(ahead), tonumber(behind)
+    if result.code ~= 0 or not ahead or not behind then
+        return "AdoPure: " .. head .. " is not available locally; fetch and pull to get correct comment positions;"
+    end
+    local function commits(count)
+        return count .. (count == 1 and " commit" or " commits")
+    end
+    if ahead == 0 then
+        return table.concat({
+            "AdoPure: local branch is ",
+            commits(behind),
+            " behind ",
+            head,
+            "; pull to get correct comment positions;",
         })
+    end
+    if behind == 0 then
+        return table.concat({
+            "AdoPure: local branch is ",
+            commits(ahead),
+            " ahead of ",
+            head,
+            "; comment positions may be off;",
+        })
+    end
+    return table.concat({
+        "AdoPure: local branch has diverged from ",
+        head,
+        " (",
+        ahead,
+        " ahead, ",
+        behind,
+        " behind); comment positions may be off;",
+    })
+end
 
-        git_checkout_remote_job:start()
-        open_callable()
-    end)
+---Get the checked out commit and branch; the branch is "HEAD" when detached.
+---@return string|nil head_commit, string|nil head_branch
+function M.get_head()
+    local result = vim.system({ "git", "rev-parse", "HEAD", "--abbrev-ref", "HEAD" }, { text = true }):wait()
+    if result.code ~= 0 then
+        return nil, nil
+    end
+    local head_commit, head_branch = unpack(vim.split(vim.trim(result.stdout or ""), "\n"))
+    return head_commit, head_branch
+end
+
+---Whether the working tree already is the pull request source, by commit or by branch name.
+---@param pull_request adopure.PullRequest
+---@return boolean
+function M.is_checked_out(pull_request)
+    local head_commit, head_branch = M.get_head()
+    if not head_commit then
+        return false
+    end
+    local source_commit = pull_request.lastMergeSourceCommit.commitId
+    if head_commit == source_commit then
+        return true
+    end
+    if "refs/heads/" .. tostring(head_branch) ~= pull_request.sourceRefName then
+        return false
+    end
+    vim.notify(describe_divergence(source_commit), vim.log.levels.WARN)
+    return true
+end
+
+---Get the root of the checked out working tree.
+---@return string|nil
+function M.get_root()
+    local result = vim.system({ "git", "rev-parse", "--show-toplevel" }, { text = true }):wait()
+    local root = vim.trim(result.stdout or "")
+    if result.code ~= 0 or root == "" then
+        return nil
+    end
+    return root
+end
+
+---Get the name of the git remote the Azure DevOps context is taken from.
+---@return string|nil
+function M.get_remote_name()
+    local result = vim.system({ "git", "remote", "-v" }, { text = true }):wait()
+    local remotes = vim.split(vim.trim(result.stdout or ""), "\n", { trimempty = true })
+    if result.code ~= 0 or #remotes == 0 then
+        return nil
+    end
+    return vim.split(elect_remote(remotes), "\t")[1]
 end
 
 return M

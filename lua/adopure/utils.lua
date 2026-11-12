@@ -62,6 +62,36 @@ function M.pull_request_thread_title(pull_request_thread)
     })
 end
 
+local thread_filters = {
+    ---@param thread adopure.Thread
+    hide_system = function(thread)
+        return thread.comments[1].commentType == "text"
+    end,
+    ---@param thread adopure.Thread
+    hide_closed = function(thread)
+        return thread.status == "active" or thread.status == "pending"
+    end,
+}
+
+--- Apply named thread filters; unknown filter names are reported and skipped
+--- @param pull_request_threads adopure.Thread[]
+--- @param filter_names string[]|nil
+--- @return adopure.Thread[] pull_request_threads
+function M.filter_threads(pull_request_threads, filter_names)
+    if not filter_names then
+        return pull_request_threads
+    end
+    local thread_iter = vim.iter(pull_request_threads)
+    for _, filter_name in ipairs(filter_names) do
+        if thread_filters[filter_name] then
+            thread_iter = thread_iter:filter(thread_filters[filter_name])
+        else
+            vim.notify("Invalid thread filter provided: " .. filter_name, 3)
+        end
+    end
+    return thread_iter:totable()
+end
+
 local hex_to_char = function(x)
     return string.char(tonumber(x, 16))
 end

@@ -10,6 +10,11 @@
 ---@field preferred_remotes string[]
 ---@field filter_my_pull_requests boolean
 ---@field viewers string[]
+---@field thread_window string
+---@field open_viewer string
+---@field pull_request_from_branch boolean
+---@field checkout_methods any
+---@field on_checkout fun(context: adopure.CheckoutContext)|nil
 
 local InternalConfig = {}
 function InternalConfig:new()
@@ -24,6 +29,9 @@ function InternalConfig:new()
         preferred_remotes = {},
         filter_my_pull_requests = false,
         viewers = { "diffview", "diffbandit" },
+        thread_window = "split",
+        open_viewer = "ask",
+        pull_request_from_branch = false,
     }
     local user_config = type(vim.g.adopure) == "function" and vim.g.adopure() or vim.g.adopure or {}
     local config = vim.tbl_deep_extend("force", default_config, user_config or {})

@@ -50,17 +50,19 @@ end
 
 ---@param prompt_bufnr number
 ---@param state_manager adopure.StateManager
-local function handle_choice(prompt_bufnr, state_manager)
+---@param on_choice fun(state: adopure.AdoState)
+local function handle_choice(prompt_bufnr, state_manager, on_choice)
     require("telescope.actions").close(prompt_bufnr)
     ---@type adopure.PullRequestEntry
     local selection = require("telescope.actions.state").get_selected_entry()
     state_manager:set_state_by_choice(selection.value)
-    require("adopure.activate").activate_pull_request_context(state_manager.state)
+    on_choice(state_manager.state)
 end
 
----Choose and activate selected pull request
+---Choose a pull request, load it into state and hand the state to on_choice
 ---@param state_manager adopure.StateManager
-function M.choose_and_activate(state_manager)
+---@param on_choice fun(state: adopure.AdoState)
+function M.choose(state_manager, on_choice)
     local wrap_preview_id = M.create_auto_wrap_preview()
     require("telescope.pickers")
         .new(require("telescope.themes").get_ivy({}), {
@@ -73,13 +75,19 @@ function M.choose_and_activate(state_manager)
             previewer = pull_request_previewer,
             attach_mappings = function(prompt_bufnr, _)
                 require("telescope.actions").select_default:replace(function()
-                    handle_choice(prompt_bufnr, state_manager)
+                    handle_choice(prompt_bufnr, state_manager, on_choice)
                     vim.api.nvim_del_autocmd(wrap_preview_id)
                 end)
                 return true
             end,
         })
         :find()
+end
+
+---Choose and activate selected pull request
+---@param state_manager adopure.StateManager
+function M.choose_and_activate(state_manager)
+    M.choose(state_manager, require("adopure.activate").activate_pull_request_context)
 end
 
 return M

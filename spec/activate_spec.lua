@@ -13,7 +13,7 @@ describe("activate pull request context", function()
         open = viewer.open,
     }
     local source_commit = "1111111111111111111111111111111111111111"
-    local prompts, notifications, opened
+    local prompts, notifications, opened, opened_with
 
     ---@param head_commit string
     ---@param head_branch string
@@ -36,6 +36,7 @@ describe("activate pull request context", function()
 
     local function fake_state()
         return {
+            root_path = "/repository",
             pull_request_threads = {},
             active_pull_request = {
                 sourceRefName = "refs/heads/feature/overview",
@@ -66,9 +67,10 @@ describe("activate pull request context", function()
         viewer.available_viewer = function()
             return "diffbandit"
         end
-        viewer.open = function()
+        viewer.open = function(merge_base, root_path)
             opened = opened + 1
-            return { viewer = "diffbandit", handle = {}, tabpage = 1 }, nil
+            opened_with = { merge_base, root_path }
+            return { viewer = "diffbandit", handle = {}, tabpage = vim.api.nvim_get_current_tabpage() }, nil
         end
     end)
 
@@ -115,7 +117,21 @@ describe("activate pull request context", function()
         local state = activate()
         assert.are.same({}, prompts)
         assert.are.same(1, opened)
+        assert.are.same({ "merge-base", "/repository" }, opened_with)
         assert.are.same("diffbandit", state.review.viewer)
+    end)
+
+    it("returns to the open review instead of opening a second one", function()
+        config.open_viewer = "always"
+        mock_head(source_commit, "HEAD")
+        local state = activate()
+        local review_tabpage = state.review.tabpage
+        vim.cmd("tabnew")
+        require("adopure.activate").activate_pull_request_context(state)
+        vim.wait(50)
+        assert.are.same(1, opened)
+        assert.are.same(review_tabpage, vim.api.nvim_get_current_tabpage())
+        vim.cmd("tabonly")
     end)
 
     it("never opens the viewer when open_viewer is never", function()

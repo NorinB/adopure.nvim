@@ -15,7 +15,7 @@ describe("load context", function()
         notify = vim.notify,
     }
     local head_commit = "1111111111111111111111111111111111111111"
-    local fetch_count, picked, activated, pull_requests
+    local fetch_count, picked, activated, pull_requests, load_count
 
     ---@param id number
     ---@param branch string
@@ -39,7 +39,7 @@ describe("load context", function()
     end
 
     before_each(function()
-        fetch_count, picked, activated = 0, {}, {}
+        fetch_count, picked, activated, load_count = 0, {}, {}, 0
         pull_requests = { pull_request(1, "feature/one"), pull_request(2, "feature/two") }
         ado_pure({ "unload" })
         vim.notify = function() end ---@diagnostic disable-line: duplicate-set-field
@@ -63,6 +63,7 @@ describe("load context", function()
             return { root_path = "." }
         end
         state_manager.StateManager.set_state_by_choice = function(self, chosen)
+            load_count = load_count + 1
             self.state = {
                 root_path = ".",
                 repository = self.repository,
@@ -149,6 +150,21 @@ describe("load context", function()
         ado_pure({ "open", "pull_request" })
         assert.are.same(1, fetch_count)
         assert.are.same("adopure://repo/pullrequest/2", vim.api.nvim_buf_get_name(0))
+    end)
+
+    it("keeps the loaded pull request when the checked out branch still points at it", function()
+        config.pull_request_from_branch = true
+        ado_pure({ "open", "pull_request" })
+        local state = require("adopure").get_loaded_state()
+        ado_pure({ "load", "context" })
+        assert.are.same(1, load_count)
+        assert.are.equal(state, require("adopure").get_loaded_state())
+        assert.are.same({ 2 }, activated)
+
+        pull_requests = { pull_request(2, "feature/two", "3333333333333333333333333333333333333333") }
+        ado_pure({ "load", "context" })
+        assert.are.same(2, load_count)
+        assert.are_not.equal(state, require("adopure").get_loaded_state())
     end)
 
     it("keeps an open overview usable after its pull request is loaded again", function()

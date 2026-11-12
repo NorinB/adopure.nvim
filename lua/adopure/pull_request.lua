@@ -514,7 +514,10 @@ local function refresh(bufnr)
     for key, value in pairs(pull_request) do
         state.active_pull_request[key] = value
     end
-    local ok, load_err = pcall(state.load_pull_request_threads, state, {})
+    local ok, load_err = pcall(function()
+        state:load_pull_request_iterations()
+        state:load_pull_request_threads({})
+    end)
     if not ok then
         vim.notify("AdoPure: " .. tostring(load_err), vim.log.levels.ERROR)
         return

@@ -84,6 +84,18 @@ function StateManager:checked_out_pull_request()
     return matches[1]
 end
 
+---Whether the pull request is the loaded one, still at the same source commit.
+---@param pull_request adopure.PullRequest
+---@return boolean
+function StateManager:is_loaded(pull_request)
+    local loaded = self.state and self.state.active_pull_request
+    if not loaded or loaded.pullRequestId ~= pull_request.pullRequestId then
+        return false
+    end
+    return vim.tbl_get(loaded, "lastMergeSourceCommit", "commitId")
+        == vim.tbl_get(pull_request, "lastMergeSourceCommit", "commitId")
+end
+
 ---Parameters for choosing a pull request.
 ---@class adopure.ChooseOpts
 ---Always prompt, even when the pull_request_from_branch config would pick the checked out pull request.
@@ -92,6 +104,7 @@ end
 ---Load a pull request into state and hand the state to on_choice.
 ---Takes the pull request of the checked out branch when pull_request_from_branch is configured;
 ---prompts to choose one otherwise.
+---A pull request taken from the branch that is loaded already is not loaded again.
 ---@param opts adopure.ChooseOpts
 ---@param on_choice fun(state: adopure.AdoState)
 function StateManager:choose(opts, on_choice)
@@ -101,6 +114,10 @@ function StateManager:choose(opts, on_choice)
     end
     if not pull_request then
         require("adopure.pickers.pull_request").choose(self, on_choice)
+        return
+    end
+    if self:is_loaded(pull_request) then
+        on_choice(self.state)
         return
     end
     self:set_state_by_choice(pull_request)

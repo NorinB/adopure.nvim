@@ -19,6 +19,7 @@
 ---     The open pull requests are fetched again on every call.
 ---     With the pull_request_from_branch config, the pull request of the checked out branch
 ---     is taken without prompting; pass {pick=true} to prompt anyway.
+---     If that pull request is loaded already, it is kept and only the review is opened.
 ---     Note: Subsequent commands will operate on the chosen PR.
 ---
 ---     *threads*: Fetch comment threads from Azure DevOps.

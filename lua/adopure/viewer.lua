@@ -9,7 +9,7 @@ local M = {}
 ---@private
 ---@class adopure.Viewer
 ---@field module string
----@field open fun(merge_base: string): any|nil, number|nil, string|nil
+---@field open fun(merge_base: string, root_path: string|nil): any|nil, number|nil, string|nil
 ---@field close fun(review: adopure.ReviewView)
 ---@field left_file_path fun(bufnr: number): string|nil
 
@@ -17,8 +17,9 @@ local M = {}
 local viewers = {
     diffview = {
         module = "diffview",
-        open = function(merge_base)
-            vim.cmd(":DiffviewOpen " .. merge_base)
+        open = function(merge_base, root_path)
+            local in_root = root_path and (" -C" .. vim.fn.fnameescape(root_path)) or ""
+            vim.cmd(":DiffviewOpen " .. merge_base .. in_root)
             local view = require("diffview.lib").get_current_view()
             if not view then
                 return nil, nil, "Failed to open diffview;"
@@ -41,10 +42,11 @@ local viewers = {
     },
     diffbandit = {
         module = "diffbandit",
-        open = function(merge_base)
+        open = function(merge_base, root_path)
             local session, err = require("diffbandit").git_panel({
                 mode = "all",
                 base = merge_base,
+                root = root_path,
                 include_untracked = false,
                 read_only = true,
             })
@@ -85,14 +87,17 @@ function M.available_viewer()
     return nil
 end
 
+---Open the diff against merge_base in the repository at root_path.
+---The root is passed on explicitly, since viewers otherwise look for the repository at the current buffer.
 ---@param merge_base string
+---@param root_path string|nil
 ---@return adopure.ReviewView|nil review, string|nil err
-function M.open(merge_base)
+function M.open(merge_base, root_path)
     local name = M.available_viewer()
     if not name then
         return nil, "No diff viewer available; install diffview.nvim or diffbandit.nvim;"
     end
-    local handle, tabpage, err = viewers[name].open(merge_base)
+    local handle, tabpage, err = viewers[name].open(merge_base, root_path)
     if err or not handle or not tabpage then
         return nil, err or ("Failed to open " .. name .. ";")
     end

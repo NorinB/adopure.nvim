@@ -3,7 +3,7 @@ local M = {}
 ---@param state adopure.AdoState
 local function open_in_viewer(state)
     local merge_base = require("adopure.git").get_merge_base(state.active_pull_request)
-    local review, err = require("adopure.viewer").open(merge_base)
+    local review, err = require("adopure.viewer").open(merge_base, state.root_path)
     if err or not review then
         vim.notify("AdoPure: " .. (err or "failed to open diff viewer;"), vim.log.levels.ERROR)
         return
@@ -13,6 +13,10 @@ end
 
 ---@param state adopure.AdoState
 local function confirm_open_in_viewer(state)
+    if state.review and vim.api.nvim_tabpage_is_valid(state.review.tabpage) then
+        vim.api.nvim_set_current_tabpage(state.review.tabpage)
+        return
+    end
     local open_viewer = require("adopure.config.internal").open_viewer
     if open_viewer == "never" then
         return
